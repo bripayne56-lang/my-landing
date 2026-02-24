@@ -1,0 +1,49 @@
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const PORT = process.env.PORT || 3000;
+const FILE_PATH = path.join(__dirname, 'public', 'index.html');
+
+const server = http.createServer((req, res) => {
+
+  if (req.url === '/') {
+
+    const startTime = Date.now();
+
+    // Serve page after 1 second
+    setTimeout(() => {
+
+      const duration = Date.now() - startTime;
+
+      // If user spent less than 1 second (super-fast), return 204
+      if (duration < 1000) {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      // Otherwise, serve your page
+      fs.readFile(FILE_PATH, (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          res.end('Error loading page');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      });
+
+    }, 1000);
+
+    return;
+  }
+
+  // Any other URL → 404
+  res.writeHead(404);
+  res.end('Not Found');
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
