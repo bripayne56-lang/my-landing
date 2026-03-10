@@ -1,33 +1,36 @@
-const express = require('express');
+const http = require('http');
+const fs = require('fs');
 const path = require('path');
 
-const app = express();
 const PORT = process.env.PORT || 3000;
+const FILE_PATH = path.join(__dirname, 'public', 'index.html');
 
-// Precheck middleware — runs for every request
-app.use(async (req, res, next) => {
-  // 1-second server-side delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
+const server = http.createServer((req, res) => {
+  const startTime = Date.now();
 
-  // Example 204 logic for bots or fast exits
-  const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-  if (userAgent.includes('bot')) {
-    return res.sendStatus(204); // 204 No Content
-  }
+  // Wait 1 second before deciding response
+  setTimeout(() => {
+    const elapsed = Date.now() - startTime;
 
-  next(); // continue to static file serving
+    if (elapsed < 1000) {
+      // User bounced under 1 second
+      res.writeHead(204);
+      res.end();
+    } else {
+      // Normal user — serve the page
+      fs.readFile(FILE_PATH, (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          res.end('Error loading page');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      });
+    }
+  }, 1000);
 });
 
-// Serve static files from 'public' folder
-app.use(express.static(path.join(__dirname, 'public')));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-// Fallback for 404
-app.use((req, res) => {
-  res.status(404).send('Not Found');
-});
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 
