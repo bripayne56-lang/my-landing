@@ -1,36 +1,28 @@
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const FILE_PATH = path.join(__dirname, 'public', 'index.html');
 
-const server = http.createServer((req, res) => {
-  const startTime = Date.now();
+const server = http.createServer(async (req, res) => {
+  // Only handle /precheck
+  if (req.url.startsWith('/precheck')) {
+    // 1-second timer
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Wait 1 second before deciding response
-  setTimeout(() => {
-    const elapsed = Date.now() - startTime;
+    // Respond 204 No Content
+    res.writeHead(204);
+    res.end();
 
-    if (elapsed < 1000) {
-      // User bounced under 1 second
-      res.writeHead(204);
-      res.end();
-    } else {
-      // Normal user — serve the page
-      fs.readFile(FILE_PATH, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading page');
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data);
-      });
-    }
-  }, 1000);
+    // Optional: log query parameters
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
+    return;
+  }
+
+  // Default for other paths
+  res.writeHead(404);
+  res.end('Not Found');
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
