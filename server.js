@@ -1,36 +1,28 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Load index.html once
-const indexPath = path.join(__dirname, 'public', 'index.html');
-let savedPage = '<h1>Page not found</h1>';
-if (fs.existsSync(indexPath)) {
-  savedPage = fs.readFileSync(indexPath, 'utf-8');
-} else {
-  console.warn('Warning: index.html not found');
-}
+// Serve static files from 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Precheck middleware
-app.use((req, res, next) => {
-  if (!req.url.startsWith('/precheck')) return next();
-
+// Precheck route
+app.get('/precheck', (req, res) => {
   let responded = false;
 
-  // 1-second timer to serve the page
+  // 1-second timer
   const timer = setTimeout(() => {
-    if (!responded && !res.writableEnded) {
-      res.status(200).type('html').send(savedPage);
+    if (!responded) {
+      // After 1 second, redirect to index.html
+      res.redirect('/');
       responded = true;
     }
   }, 1000);
 
   // Early disconnect detection → 204
   req.on('close', () => {
-    if (!responded && !res.writableEnded) {
+    if (!responded) {
       clearTimeout(timer);
       try {
         res.sendStatus(204);
@@ -41,14 +33,8 @@ app.use((req, res, next) => {
     }
   });
 
-  // Optional logging
-  const host = req.headers.host || `localhost:${PORT}`;
-  const url = new URL(req.url, `http://${host}`);
-  console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
+  console.log('Precheck hit for:', req.query.lp || 'no lp');
 });
-
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Fallback 404
 app.use((req, res) => {
