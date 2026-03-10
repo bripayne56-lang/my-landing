@@ -8,9 +8,12 @@ const server = http.createServer(async (req, res) => {
     // 1-second timer
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Respond 204 No Content
-    res.writeHead(204);
-    res.end();
+    // Check if connection is still open
+    if (!res.writableEnded) {
+      // Respond 204 No Content
+      res.writeHead(204);
+      res.end();
+    }
 
     // Optional: log query parameters
     const url = new URL(req.url, `http://${req.headers.host}`);
