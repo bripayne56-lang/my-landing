@@ -4,9 +4,15 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 
-// Load your saved page once
+// Safely load index.html relative to server.js
+let savedPage = '<h1>Page not found</h1>'; // fallback
 const pagePath = path.join(__dirname, 'index.html');
-const savedPage = fs.readFileSync(pagePath, 'utf-8');
+
+if (fs.existsSync(pagePath)) {
+  savedPage = fs.readFileSync(pagePath, 'utf-8');
+} else {
+  console.warn('Warning: index.html not found, using fallback HTML');
+}
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/precheck')) {
@@ -15,19 +21,18 @@ const server = http.createServer((req, res) => {
     // 1-second timer
     const timer = setTimeout(() => {
       if (!responded && !res.writableEnded) {
-        // User stayed 1 second → serve HTML
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(savedPage);
         responded = true;
       }
     }, 1000);
 
-    // Detect if user disconnects before 1 second
+    // Detect early disconnects
     req.on('close', () => {
       if (!responded && !res.writableEnded) {
         clearTimeout(timer);
         try {
-          res.writeHead(204); // User left early → 204
+          res.writeHead(204);
           res.end();
         } catch (err) {
           console.error('Error ending response:', err.message);
@@ -36,7 +41,7 @@ const server = http.createServer((req, res) => {
       }
     });
 
-    // Optional: log query parameters
+    // Optional: log query parameters and User-Agent
     const host = req.headers.host || `localhost:${PORT}`;
     const url = new URL(req.url, `http://${host}`);
     console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
@@ -44,9 +49,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Default for other paths
-  res.writeHead(404);
-  res.end('Not Found');
+  // Default response for other routes
+  if (!res.writableEnded) {
+    res.writeHead(404);
+    res.end('Not Found');
+  }
 });
 
 server.listen(PORT, () => {
