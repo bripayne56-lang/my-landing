@@ -1,46 +1,28 @@
-const express = require('express');
-const path = require('path');
+const http = require('http');
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from 'public' folder
-app.use(express.static(path.join(__dirname, 'public')));
+const server = http.createServer(async (req, res) => {
+  // Only handle /precheck
+  if (req.url.startsWith('/precheck')) {
+    // 1-second timer
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-// Precheck route
-app.get('/precheck', (req, res) => {
-  let responded = false;
+    // Respond 204 No Content
+    res.writeHead(204);
+    res.end();
 
-  // 1-second timer
-  const timer = setTimeout(() => {
-    if (!responded) {
-      // After 1 second, redirect to index.html
-      res.redirect('/');
-      responded = true;
-    }
-  }, 1000);
+    // Optional: log query parameters for your blog
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
+    return;
+  }
 
-  // Early disconnect detection → 204
-  req.on('close', () => {
-    if (!responded) {
-      clearTimeout(timer);
-      try {
-        res.sendStatus(204);
-      } catch (err) {
-        console.error('Error sending 204:', err.message);
-      }
-      responded = true;
-    }
-  });
-
-  console.log('Precheck hit for:', req.query.lp || 'no lp');
+  // Default for other paths
+  res.writeHead(404);
+  res.end('Not Found');
 });
 
-// Fallback 404
-app.use((req, res) => {
-  res.status(404).send('Not Found');
-});
-
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
