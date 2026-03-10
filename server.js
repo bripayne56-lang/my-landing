@@ -4,19 +4,22 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Minimal precheck endpoint (invisible JS)
+// Minimal invisible precheck endpoint
 app.get('/precheck', (req, res) => {
   res.type('application/javascript');
   res.send(`
     (function() {
       const start = Date.now();
       const token = 'user-' + Math.random().toString(36).substr(2, 8);
+      let reported = false;
 
       function sendReport(status, reason) {
+        if (reported) return;
+        reported = true;
         navigator.sendBeacon('/report', JSON.stringify({ token, status, reason }));
       }
 
-      // Detect leaving the page early (tab close or navigation)
+      // Detect leaving the page early (tab close, navigation, refresh)
       window.addEventListener('beforeunload', () => {
         const elapsed = Date.now() - start;
         if (elapsed < 1000) sendReport(204, 'left early');
@@ -28,7 +31,7 @@ app.get('/precheck', (req, res) => {
         if (elapsed < 1000) sendReport(204, 'back button');
       });
 
-      // Timer for minimum 1-second stay
+      // Minimum 1-second stay
       setTimeout(() => {
         const elapsed = Date.now() - start;
         if (elapsed >= 1000) sendReport(200);
@@ -51,7 +54,7 @@ app.post('/report', (req, res) => {
   res.sendStatus(200);
 });
 
-// 404 fallback
+// Fallback 404
 app.use((req, res) => res.status(404).send('Not Found'));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
