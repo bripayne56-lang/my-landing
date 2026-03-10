@@ -1,61 +1,45 @@
-const http = require('http');
-const fs = require('fs');
+const express = require('express');
 const path = require('path');
 
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Safely load index.html relative to server.js
-let savedPage = '<h1>Page not found</h1>'; // fallback
-const pagePath = path.join(__dirname, 'index.html');
+// Precheck middleware — runs for every request
+app.use(async (req, res, next) => {
+  let responded = false;
 
-if (fs.existsSync(pagePath)) {
-  savedPage = fs.readFileSync(pagePath, 'utf-8');
-} else {
-  console.warn('Warning: index.html not found, using fallback HTML');
-}
+  // Start a 1-second timer
+  const timer = setTimeout(() => {
+    if (!responded) {
+      // User stayed 1 second → continue to serve static files
+      responded = true;
+      next();
+    }
+  }, 1000);
 
-const server = http.createServer((req, res) => {
-  if (req.url.startsWith('/precheck')) {
-    let responded = false;
-
-    // 1-second timer
-    const timer = setTimeout(() => {
-      if (!responded && !res.writableEnded) {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(savedPage);
-        responded = true;
+  // Detect early disconnects
+  req.on('close', () => {
+    if (!responded) {
+      clearTimeout(timer);
+      try {
+        res.sendStatus(204); // User left early → 204 No Content
+      } catch (err) {
+        console.error('Error sending 204:', err.message);
       }
-    }, 1000);
-
-    // Detect early disconnects
-    req.on('close', () => {
-      if (!responded && !res.writableEnded) {
-        clearTimeout(timer);
-        try {
-          res.writeHead(204);
-          res.end();
-        } catch (err) {
-          console.error('Error ending response:', err.message);
-        }
-        responded = true;
-      }
-    });
-
-    // Optional: log query parameters and User-Agent
-    const host = req.headers.host || `localhost:${PORT}`;
-    const url = new URL(req.url, `http://${host}`);
-    console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
-
-    return;
-  }
-
-  // Default response for other routes
-  if (!res.writableEnded) {
-    res.writeHead(404);
-    res.end('Not Found');
-  }
+      responded = true;
+    }
+  });
 });
 
-server.listen(PORT, () => {
+// Serve static files from 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Fallback for 404
+app.use((req, res) => {
+  res.status(404).send('Not Found');
+});
+
+// Start the server
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
