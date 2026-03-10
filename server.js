@@ -1,65 +1,57 @@
 const express = require('express');
-const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Serve precheck page — minimal HTML + JS
+// Minimal precheck endpoint (invisible JS)
 app.get('/precheck', (req, res) => {
+  res.type('application/javascript');
   res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head><title>Precheck</title></head>
-    <body><h1>Loading...</h1>
-    <script>
+    (function() {
       const start = Date.now();
-      const token = 'user-' + Math.random().toString(36).substr(2,8);
+      const token = 'user-' + Math.random().toString(36).substr(2, 8);
 
-      // Send beacon on leave
+      function sendReport(status, reason) {
+        navigator.sendBeacon('/report', JSON.stringify({ token, status, reason }));
+      }
+
+      // Detect leaving the page early (tab close or navigation)
       window.addEventListener('beforeunload', () => {
         const elapsed = Date.now() - start;
-        navigator.sendBeacon('/report', JSON.stringify({ token, elapsed }));
+        if (elapsed < 1000) sendReport(204, 'left early');
       });
 
-      // After 1s, send beacon and inject index.html
+      // Detect back/forward navigation
+      window.addEventListener('popstate', () => {
+        const elapsed = Date.now() - start;
+        if (elapsed < 1000) sendReport(204, 'back button');
+      });
+
+      // Timer for minimum 1-second stay
       setTimeout(() => {
         const elapsed = Date.now() - start;
-        navigator.sendBeacon('/report', JSON.stringify({ token, elapsed }));
-
-        // Fetch index.html and inject
-        fetch('/index.html')
-          .then(r => r.text())
-          .then(html => {
-            document.open();
-            document.write(html);
-            document.close();
-          });
+        if (elapsed >= 1000) sendReport(200);
       }, 1000);
-    </script>
-    </body>
-    </html>
+    })();
   `);
 });
 
 // Receive beacon reports
 app.post('/report', (req, res) => {
-  const { token, elapsed } = req.body || {};
-  if (!token || elapsed == null) return res.sendStatus(400);
+  const { token, status, reason } = req.body || {};
+  if (!token || !status) return res.sendStatus(400);
 
-  if (elapsed < 1000) {
-    console.log(`User ${token} bounced (<1s)`); // optional: analytics
-    return res.sendStatus(204);
-  } else {
-    console.log(`User ${token} stayed ${elapsed} ms`);
-    return res.sendStatus(200);
+  if (status === 204) {
+    console.log(`User ${token} bounced (<1s) - ${reason || 'unknown reason'}`);
+  } else if (status === 200) {
+    console.log(`User ${token} stayed >=1s`);
   }
+
+  res.sendStatus(200);
 });
 
-// Serve index.html and other static files
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Fallback 404
+// 404 fallback
 app.use((req, res) => res.status(404).send('Not Found'));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
