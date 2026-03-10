@@ -1,31 +1,41 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 const PORT = process.env.PORT || 3000;
+const FILE_PATH = path.join(__dirname, 'public', 'index.html');
 
-const server = http.createServer(async (req, res) => {
-  // Only handle /precheck
-  if (req.url.startsWith('/precheck')) {
-    // 1-second timer
-    await new Promise(resolve => setTimeout(resolve, 1000));
+const server = http.createServer((req, res) => {
+  const startTime = Date.now();
 
-    // Check if connection is still open
-    if (!res.writableEnded) {
-      // Respond 204 No Content
-      res.writeHead(204);
-      res.end();
+  // Flag to track if client disconnected
+  let clientDisconnected = false;
+
+  // Listen for client disconnect
+  req.on('close', () => {
+    clientDisconnected = true;
+  });
+
+  // Wait 1 second
+  setTimeout(() => {
+    if (clientDisconnected) {
+      // Client left early → send 204
+      // Note: we can’t write to disconnected socket; just log
+      console.log('Client bounced under 1 second, 204 triggered');
+      return;
     }
 
-    // Optional: log query parameters
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
-    return;
-  }
-
-  // Default for other paths
-  res.writeHead(404);
-  res.end('Not Found');
+    // Client still connected → serve saved webpage
+    fs.readFile(FILE_PATH, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end('Error loading page');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+  }, 1000);
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
