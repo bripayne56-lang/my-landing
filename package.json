@@ -1,10 +1,9 @@
 {
-  "name": "precheck-server",
+  "name": "scalingo-precheck",
   "version": "1.0.0",
-  "description": "Server that serves index.html after 1-second precheck",
-  "main": "server.js",
+  "main": "precheck.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node precheck.js"
   },
   "engines": {
     "node": "20.x"
