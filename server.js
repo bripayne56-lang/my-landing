@@ -7,12 +7,15 @@ const indexPath = path.join(__dirname, 'public', 'index.html');
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/precheck')) {
+
     let disconnected = false;
 
+    // Detect early disconnect
     req.on('close', () => {
       disconnected = true;
     });
 
+    // 1-second delay
     setTimeout(() => {
       if (disconnected) {
         res.writeHead(204);
@@ -20,21 +23,17 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      fs.readFile(indexPath, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading page');
-          return;
-        }
+      // Serve large HTML file via stream
+      const stream = fs.createReadStream(indexPath);
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      stream.pipe(res);
 
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data);
-      });
     }, 1000);
 
     return;
   }
 
+  // Default for other paths
   res.writeHead(404);
   res.end('Not Found');
 });
