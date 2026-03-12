@@ -1,53 +1,24 @@
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const FILE_PATH = path.join(__dirname, 'public', 'index.html');
 
-const server = http.createServer((req, res) => {
-
+const server = http.createServer(async (req, res) => {
+  // Only handle /precheck
   if (req.url.startsWith('/precheck')) {
-    let finished = false;
+    // 1-second timer
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // detect if client leaves early
-    req.on('close', () => {
-      if (!finished) {
-        res.writeHead(204);
-        res.end();
-        finished = true;
-        console.log('Client exited early → 204');
-      }
-    });
+    // Respond 204 No Content
+    res.writeHead(204);
+    res.end();
 
-    // 1 second delay
-    setTimeout(() => {
-      if (finished) return;
-
-      fs.readFile(FILE_PATH, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading page');
-          return;
-        }
-
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data);
-        finished = true;
-
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        console.log(
-          'Served page for:',
-          url.searchParams.get('lp') || 'no lp',
-          'User-Agent:',
-          req.headers['user-agent']
-        );
-      });
-    }, 1000);
-
+    // Optional: log query parameters for your blog
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    console.log('Precheck hit for:', url.searchParams.get('lp') || 'no lp', 'User-Agent:', req.headers['user-agent']);
     return;
   }
 
+  // Default for other paths
   res.writeHead(404);
   res.end('Not Found');
 });
