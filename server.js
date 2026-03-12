@@ -6,27 +6,21 @@ const PORT = process.env.PORT || 3000;
 const indexPath = path.join(__dirname, 'public', 'index.html');
 
 const server = http.createServer((req, res) => {
-
   if (req.url.startsWith('/precheck')) {
+    let disconnected = false;
 
-    let closed = false;
-
-    // Detect if client disconnects early
     req.on('close', () => {
-      closed = true;
+      disconnected = true;
     });
 
     setTimeout(() => {
-
-      if (closed) {
+      if (disconnected) {
         res.writeHead(204);
         res.end();
-        console.log('Client left early → 204');
         return;
       }
 
       fs.readFile(indexPath, (err, data) => {
-
         if (err) {
           res.writeHead(500);
           res.end('Error loading page');
@@ -35,17 +29,7 @@ const server = http.createServer((req, res) => {
 
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(data);
-
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        console.log(
-          'Served page for:',
-          url.searchParams.get('lp') || 'no lp',
-          'User-Agent:',
-          req.headers['user-agent']
-        );
-
       });
-
     }, 1000);
 
     return;
