@@ -1,18 +1,17 @@
-// server.js — 1-second precheck + 204 for early exit + serve index.html + cron ping
+// server.js — Render-ready precheck server with cron ping
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { CronJob } = require('cron');
-const https = require('https');
 
 const PORT = process.env.PORT || 3000;
 const FILE_PATH = path.join(__dirname, 'public', 'index.html');
 
 // -------------------------
 // Cron job to keep server awake (ping /precheck every 14s)
-const backendUrl = `http://localhost:${PORT}/precheck`;
+const backendUrl = `http://localhost:${PORT}/precheck`; // use http, not https
 const job = new CronJob('*/14 * * * * *', () => { // every 14 seconds
-  https.get(backendUrl, (res) => {
+  http.get(backendUrl, (res) => { // use http.get
     if (res.statusCode === 204) {
       console.log('Server alive (status 204)');
     } else {
@@ -75,4 +74,3 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
