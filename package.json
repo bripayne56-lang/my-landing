@@ -1,15 +1,13 @@
 {
-  "name": "scalingo-precheck",
+  "name": "precheck-site",
   "version": "1.0.0",
-  "main": "precheck.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node precheck.js"
-  },
-  "engines": {
-    "node": "20.x"
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "cron": "^2.3.0"
   }
 }
+
 
