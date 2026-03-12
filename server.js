@@ -9,22 +9,21 @@ const server = http.createServer((req, res) => {
 
   if (req.url.startsWith('/precheck')) {
 
-    let finished = false;
+    let closed = false;
 
-    // If the client disconnects early
+    // Detect if client disconnects early
     req.on('close', () => {
-      if (!finished) {
-        res.writeHead(204);
-        res.end();
-        finished = true;
-        console.log('Client left before 1 second → 204');
-      }
+      closed = true;
     });
 
-    // Wait 1 second
     setTimeout(() => {
 
-      if (finished) return;
+      if (closed) {
+        res.writeHead(204);
+        res.end();
+        console.log('Client left early → 204');
+        return;
+      }
 
       fs.readFile(indexPath, (err, data) => {
 
@@ -36,7 +35,6 @@ const server = http.createServer((req, res) => {
 
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(data);
-        finished = true;
 
         const url = new URL(req.url, `http://${req.headers.host}`);
         console.log(
