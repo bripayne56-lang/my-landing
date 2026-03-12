@@ -1,6 +1,0 @@
-name: app
-type: nodejs:18
-
-web:
-  commands:
-    start: "npm start"
